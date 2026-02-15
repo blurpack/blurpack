@@ -11,8 +11,10 @@
         :root {
             --bg-color: #ffffff;
             --text-color: #000000;
-            --circle-size: 70vmin;
+            --circle-size: 80vmin;
             --center-img-size: 340px; 
+            /* ▼ 트랜지션 속도를 여기서 한 번에 관리하면 편합니다 */
+            --transition-speed: 0.5s; 
         }
 
         html, body { 
@@ -34,7 +36,7 @@
             position: absolute; inset: 0; 
             opacity: 0.9; 
             filter: blur(400px); 
-            transition: filter 0.5s ease-out; 
+            transition: filter 0.65s ease-out; 
         }
         .bg-layer img { width: 100%; height: 100%; object-fit: fill; }
         
@@ -42,7 +44,7 @@
             position: absolute; width: var(--circle-size); height: var(--circle-size); 
             left: 50%; top: 50%; transform: translate(-50%, -50%); 
             border-radius: 50%; background: var(--bg-color); overflow: hidden; 
-            box-shadow: inset 0 0 30px rgba(0,0,0,0.1), 0 0 50px rgba(0,0,0,0.05); 
+            box-shadow: inset 0 0 150px rgba(0,0,0,2.2), 0 0 50px rgba(0,0,0,0.05); 
             opacity: 0; transition: opacity 1.5s ease; 
         }
         
@@ -78,68 +80,84 @@
             background: rgba(255, 255, 255, 0.85); 
         }
 
-        .tile-grid { display: grid; grid-template-columns: repeat(1, 1fr); width: 100%; }
+        .tile-grid { display: grid; grid-template-columns: repeat(1, 1fr); width: 100%; min-height: 100vh; background-color: #ffffff; }
         
-        .tile-item { position: relative; width: 100%; aspect-ratio: 1 / 1; cursor: pointer; overflow: hidden; background: #eee; }
-        .tile-item img { width: 100%; height: 100%; object-fit: cover; display: block; transition: filter 0.5s ease, transform 0.5s ease; }
+        .tile-item { 
+            position: relative; width: 100%; aspect-ratio: 1 / 1; 
+            cursor: pointer; overflow: hidden; 
+            background: #000; 
+        }
         
+        .tile-item img { 
+            position: absolute; inset: 0;
+            width: 100%; height: 100%; object-fit: cover; display: block; 
+            transform: scale(1.1); /* 테두리 번짐 방지용 */
+            opacity: 0; 
+            filter: blur(40px);
+            will-change: filter, opacity;
+        }
+
+        .tile-item img.active {
+            opacity: 1;
+            filter: blur(0px);
+            z-index: 3;
+            /* 슬라이드 전환 속도: 여기서 조절 (1s) */
+            transition: filter var(--transition-speed) ease, opacity var(--transition-speed) ease;
+        }
+
+        .tile-item img.fading-out {
+            opacity: 1;
+            filter: blur(40px);
+            z-index: 2;
+            transition: filter var(--transition-speed) ease;
+        }
+
         .tile-overlay {
             position: absolute; inset: 0;
-            display: flex; align-items: center; justify-content: center;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
             color: rgba(255, 255, 255, 0.75); 
             opacity: 0; transition: opacity 0.5s ease;
-            pointer-events: none; z-index: 2;
+            pointer-events: none; z-index: 10;
         }
 
         .music-container { position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
-        
         .album-title { position: absolute; right: 30px; top: 50%; transform: translateY(-50%) rotate(90deg); transform-origin: center; white-space: nowrap; font-size: 1rem; font-weight: bold; }
         .artist-name { position: absolute; left: 30px; top: 50%; transform: translateY(-50%) rotate(-90deg); transform-origin: center; white-space: nowrap; font-size: 1rem; font-weight: bold; }
 
-        /* ========= [모바일 기준 (기본)] ========= */
-        .track-list { 
-            display: flex; flex-direction: column; 
-            align-items: center; justify-content: center; 
-            width: 60%; max-height: 80%; 
-            gap: 12px; 
+        .copyright-text {
+            position: absolute; bottom: 20px; width: 100%; text-align: center;
+            font-size: 0.6rem; opacity: 0.6; font-weight: 300;
+            letter-spacing: 0.05em;
         }
-        .track-item { 
-            font-size: 0.95rem; 
-            text-align: center; line-height: 1.2; word-break: keep-all; 
-        }
+
+        .track-list { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 60%; max-height: 80%; gap: 12px; }
+        .track-item { font-size: 0.95rem; text-align: center; line-height: 1.2; word-break: keep-all; }
         .track-item.low-priority { filter: blur(5px); opacity: 0.3; }
 
-        /* 모바일: 5곡 이상 (글자 줄임) */
-        .track-list.dense { gap: 8px; }
-        .track-list.dense .track-item { font-size: 0.8rem; }
-
-        /* 모바일: 9곡 이상 (글자 더 줄임) */
-        .track-list.very-dense { gap: 4px; }
-        .track-list.very-dense .track-item { font-size: 0.65rem; line-height: 1.1; }
-
-        .tile-item.show-info img { filter: blur(30px); transform: scale(1.1); }
+        /* [수정 포인트] 정보 표시 모드일 때 사진 확대(scale) 제거 */
+        .tile-item.show-info img.active { 
+            filter: blur(40px); 
+            transform: scale(1.1); /* 확대(1.15->1.1)를 없애고 기존 테두리 방지용 스케일만 유지 */
+        }
         .tile-item.show-info .tile-overlay { opacity: 1; }
 
+        .tile-item.filler { background-color: #ffffff !important; cursor: default; pointer-events: none; border: none; }
 
-        /* ========= [PC 화면 (769px 이상) - 화끈하게 키움] ========= */
         @media (min-width: 769px) { 
             .tile-grid { grid-template-columns: repeat(2, 1fr); } 
-
-            /* 제목도 시원하게 키움 */
             .album-title { font-size: 1.4rem; right: 50px; } 
             .artist-name { font-size: 1.4rem; left: 50px; }
-
-            /* 1. PC 기본 (4곡 이하): 아주 크게 (24px 정도) */
             .track-list { gap: 24px; }
             .track-item { font-size: 1.5rem; } 
-
-            /* 2. PC 5~8곡 (Dense): 줄이지 않음! 공간 충분함. */
             .track-list.dense { gap: 18px; }
             .track-list.dense .track-item { font-size: 1.4rem; } 
-
-            /* 3. PC 9곡 이상 (Very Dense): 아주 살짝만 줄임 (여전히 큼) */
             .track-list.very-dense { gap: 12px; }
             .track-list.very-dense .track-item { font-size: 1.2rem; }
+            .copyright-text { font-size: 0.75rem; bottom: 30px; }
+        }
+
+        @media (max-width: 768px) {
+            .tile-item.filler { display: none !important; }
         }
     </style>
 </head>
@@ -161,7 +179,7 @@
     document.addEventListener('wheel', e => { if (e.ctrlKey) e.preventDefault(); }, { passive: false });
     document.addEventListener('touchmove', e => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
 
-    const categories = [ { id: "blurpacks", label: "blurpacks", x: -400, y: -250 }, { id: "musics", label: "musics", x: 450, y: -100 }, { id: "movies", label: "movies", x: -100, y: 350 } ];
+    const categories = [ { id: "blurpacks", label: "blurpacks", x: -450, y: -250 }, { id: "musics", label: "musics", x: 500, y: -100 }, { id: "movies", label: "movies", x: -100, y: 450 } ];
     
     const mainContainer = document.getElementById("main-container");
     const world = document.getElementById("world");
@@ -182,28 +200,14 @@
     });
     nodes.push({ el: centerImg, x: 0, y: 0 });
 
-    /* 사용자 설정 유지: 100ms */
-    window.onload = () => { 
-        setTimeout(() => { 
-            bgLayer.style.filter = "blur(7px)"; 
-        }, 100);
-    };
+    window.onload = () => { setTimeout(() => { bgLayer.style.filter = "blur(7px)"; }, 100); };
 
-    /* 사용자 설정 유지: 200ms, 500ms */
     function startInteraction() {
         if (hasInteracted) return;
         hasInteracted = true;
-
         mainContainer.classList.add('blurred');
-
-        setTimeout(() => {
-            circle.classList.add('visible');
-        }, 200); 
-
-        setTimeout(() => {
-            mainContainer.classList.remove('blurred');
-            isIntroPlaying = false; 
-        }, 500); 
+        setTimeout(() => { circle.classList.add('visible'); }, 200); 
+        setTimeout(() => { mainContainer.classList.remove('blurred'); isIntroPlaying = false; }, 500); 
     }
 
     window.addEventListener('click', startInteraction);
@@ -212,70 +216,90 @@
     function openPage(catId) {
         history.pushState({ page: catId }, catId, `#${catId}`);
         gallery.innerHTML = ""; 
-        
         mainContainer.classList.add('blurred');
-        
-        requestAnimationFrame(() => {
-            contentLayer.classList.add('active');
-        });
+        requestAnimationFrame(() => { contentLayer.classList.add('active'); });
 
         let items = [];
         if (typeof myPortfolioData !== 'undefined' && myPortfolioData[catId]) {
             items = myPortfolioData[catId];
-        } else {
-            gallery.innerHTML = "<p style='padding:20px; color:red;'>data.js 확인 필요</p>";
+        }
+
+        if (items.length === 0) {
+            const rowCount = window.innerWidth >= 769 ? 2 : 1; 
+            for(let i=0; i<rowCount; i++) {
+                const filler = document.createElement("div"); filler.className = "tile-item filler";
+                gallery.appendChild(filler);
+            }
             return;
         }
 
         items.forEach(item => {
             const tile = document.createElement("div"); tile.className = "tile-item";
-            tile.onclick = () => {
-                const isShown = tile.classList.contains('show-info');
-                document.querySelectorAll('.tile-item').forEach(t => t.classList.remove('show-info'));
-                if(!isShown) tile.classList.add('show-info');
+            const imgList = Array.isArray(item.img) ? item.img : [item.img];
+            let currentIdx = 0;
+            let isTransitioning = false;
+
+            tile.onclick = async () => {
+                if (isTransitioning) return;
+                
+                if (catId === 'blurpacks' && imgList.length > 1) {
+                    isTransitioning = true;
+                    const imgs = tile.querySelectorAll('img');
+                    const oldImg = imgs[currentIdx];
+                    currentIdx = (currentIdx + 1) % imgList.length;
+                    const nextImg = imgs[currentIdx];
+
+                    try {
+                        await nextImg.decode(); 
+                        oldImg.classList.add('fading-out');
+                        oldImg.classList.remove('active');
+                        nextImg.classList.add('active');
+                        setTimeout(() => {
+                            oldImg.classList.remove('fading-out');
+                            isTransitioning = false;
+                        }, 1050);
+                    } catch (e) {
+                        oldImg.classList.remove('active');
+                        nextImg.classList.add('active');
+                        isTransitioning = false;
+                    }
+                } else {
+                    const isShown = tile.classList.contains('show-info');
+                    document.querySelectorAll('.tile-item').forEach(t => t.classList.remove('show-info'));
+                    if(!isShown) tile.classList.add('show-info');
+                }
             };
 
-            let overlayHtml = "";
-            if (catId === "musics") {
-                const trackArray = item.tracks ? item.tracks.split(',') : [];
-                const trackCount = trackArray.length;
-                
-                // 클래스만 붙여주고, 실제 크기 조절은 CSS 미디어 쿼리에서 담당함
-                let densityClass = "";
-                if (trackCount >= 9) {
-                    densityClass = "very-dense";
-                } else if (trackCount >= 5) {
-                    densityClass = "dense";
-                }
+            const copyrightHtml = item.author ? `<div class="copyright-text">ⓒ ${item.author}. All rights reserved.</div>` : "";
+            let overlayContent = (catId === "musics") ? renderMusicOverlay(item) : `<div style="font-size:1.5rem; font-weight:bold; margin-bottom: 10px;">${item.title}</div>`;
 
-                const tracksHtml = trackArray.map(t => {
-                    const tName = t.trim(); const isLow = tName.startsWith('*');
-                    return `<div class="track-item ${isLow ? 'low-priority' : ''}">${isLow ? tName.substring(1) : tName}</div>`;
-                }).join('');
-                
-                overlayHtml = `
-                    <div class="music-container">
-                        <div class="album-title">${item.title}</div>
-                        <div class="artist-name">${item.artist}</div>
-                        <div class="track-list ${densityClass}">${tracksHtml}</div>
-                    </div>
-                `;
-            } else {
-                overlayHtml = `<div style="font-size:1.5rem; font-weight:bold;">${item.title}</div>`;
-            }
+            const imgsHtml = imgList.map((src, idx) => 
+                `<img src="${catId}/${src}" class="${idx === 0 ? 'active' : ''}" onerror="this.src='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII='">`
+            ).join('');
 
-            tile.innerHTML = `
-                <img src="${catId}/${item.img}" onerror="this.src='https://via.placeholder.com/600x600/ccc/333?text=Image+Not+Found'">
-                <div class="tile-overlay">${overlayHtml}</div>
-            `;
+            tile.innerHTML = `${imgsHtml}<div class="tile-overlay">${overlayContent}${copyrightHtml}</div>`;
             gallery.appendChild(tile);
         });
+
+        if (items.length % 2 !== 0) {
+            const filler = document.createElement("div"); filler.className = "tile-item filler";
+            gallery.appendChild(filler);
+        }
     }
 
-    window.onpopstate = () => { 
-        contentLayer.classList.remove('active');
-        mainContainer.classList.remove('blurred');
-    };
+    function renderMusicOverlay(item) {
+        let trackStr = typeof item.tracks === 'string' ? item.tracks : (Array.isArray(item.tracks) ? item.tracks.join(',') : "");
+        const trackArray = trackStr ? trackStr.split(',') : [];
+        const trackCount = trackArray.length;
+        let densityClass = trackCount >= 9 ? "very-dense" : (trackCount >= 5 ? "dense" : "");
+        const tracksHtml = trackArray.map(t => {
+            const tName = t.trim(); const isLow = tName.startsWith('*');
+            return `<div class="track-item ${isLow ? 'low-priority' : ''}">${isLow ? tName.substring(1) : tName}</div>`;
+        }).join('');
+        return `<div class="music-container"><div class="album-title">${item.title}</div><div class="artist-name">${item.artist}</div><div class="track-list ${densityClass}">${tracksHtml}</div></div>`;
+    }
+
+    window.onpopstate = () => { contentLayer.classList.remove('active'); mainContainer.classList.remove('blurred'); };
 
     let posX = 0, posY = 0, vx = 0, vy = 0, isDragging = false, lastX = 0, lastY = 0;
     const start = (x, y) => { if(isIntroPlaying || contentLayer.classList.contains('active')) return; isDragging = true; lastX = x; lastY = y; };
@@ -300,4 +324,4 @@
     animate();
 </script>
 </body>
-</html>
+</html> 
