@@ -13,7 +13,6 @@
             --text-color: #000000;
             --circle-size: 80vmin;
             --center-img-size: 340px; 
-            /* ▼ 트랜지션 속도를 여기서 한 번에 관리하면 편합니다 */
             --transition-speed: 0.5s; 
         }
 
@@ -44,7 +43,7 @@
             position: absolute; width: var(--circle-size); height: var(--circle-size); 
             left: 50%; top: 50%; transform: translate(-50%, -50%); 
             border-radius: 50%; background: var(--bg-color); overflow: hidden; 
-            box-shadow: inset 0 0 100px rgba(100,100,100,2.2), 0 0 25px rgba(0,0,0,05); 
+            box-shadow: inset 0 0 100px rgba(100,100,100,2.2), 0 0 25px rgba(0,0,0,0.05); 
             opacity: 0; transition: opacity 0.8s ease;
         }
         
@@ -91,7 +90,7 @@
         .tile-item img { 
             position: absolute; inset: 0;
             width: 100%; height: 100%; object-fit: cover; display: block; 
-            transform: scale(1.1); /* 테두리 번짐 방지용 */
+            transform: scale(1.1); 
             opacity: 0; 
             filter: blur(40px);
             will-change: filter, opacity;
@@ -101,7 +100,6 @@
             opacity: 1;
             filter: blur(0px);
             z-index: 3;
-            /* 슬라이드 전환 속도: 여기서 조절 (1s) */
             transition: filter var(--transition-speed) ease, opacity var(--transition-speed) ease;
         }
 
@@ -116,7 +114,7 @@
             position: absolute; inset: 0;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             color: rgba(255, 255, 255, 0.75); 
-            opacity: 0; transition: opacity 0.5s ease;
+            opacity: 0; transition: opacity var(--transition-speed) ease;
             pointer-events: none; z-index: 10;
         }
 
@@ -127,17 +125,27 @@
         .copyright-text {
             position: absolute; bottom: 20px; width: 100%; text-align: center;
             font-size: 0.6rem; opacity: 0.6; font-weight: 300;
-            letter-spacing: 0.05em;
+            letter-spacing: 0.05em; z-index: 20;
+            color: #fff;
         }
 
-        .track-list { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 60%; max-height: 80%; gap: 12px; }
+        .track-list { 
+            display: flex; flex-direction: column; align-items: center; justify-content: center; 
+            width: 60%; max-height: 80%; gap: 12px;
+            transition: filter var(--transition-speed) ease, opacity var(--transition-speed) ease;
+        }
+        
+        .track-list.switching {
+            filter: blur(20px);
+            opacity: 0;
+        }
+
         .track-item { font-size: 0.95rem; text-align: center; line-height: 1.2; word-break: keep-all; }
         .track-item.low-priority { filter: blur(5px); opacity: 0.3; }
 
-        /* [수정 포인트] 정보 표시 모드일 때 사진 확대(scale) 제거 */
         .tile-item.show-info img.active { 
             filter: blur(40px); 
-            transform: scale(1.1); /* 확대(1.15->1.1)를 없애고 기존 테두리 방지용 스케일만 유지 */
+            transform: scale(1.1); 
         }
         .tile-item.show-info .tile-overlay { opacity: 1; }
 
@@ -155,32 +163,21 @@
             .track-list.very-dense .track-item { font-size: 1.2rem; }
             .copyright-text { font-size: 0.75rem; bottom: 30px; }
         }
-
-        @media (max-width: 768px) {
-            .tile-item.filler { display: none !important; }
-        }
     </style>
 </head>
 <body oncontextmenu="return false;">
-    
     <div id="main-container">
-        <div class="bg-layer" id="bgLayer"><img src="bpm.webp" onerror="this.style.backgroundColor='#ccc'"></div>
+        <div class="bg-layer" id="bgLayer"><img src="bpm.webp"></div>
         <div class="viewport-circle" id="circle">
             <div class="world-plane" id="world">
-                <img src="bp_logo_c.webp" class="center-image-node" id="centerImage" onerror="this.src='https://via.placeholder.com/150'">
+                <img src="bp_logo_c.webp" class="center-image-node" id="centerImage">
             </div>
         </div>
     </div>
-
     <div id="content-layer"><div class="tile-grid" id="image-gallery"></div></div>
 
 <script>
-    document.addEventListener('keydown', e => { if (e.ctrlKey && ['+', '-', '=', '0'].includes(e.key)) e.preventDefault(); });
-    document.addEventListener('wheel', e => { if (e.ctrlKey) e.preventDefault(); }, { passive: false });
-    document.addEventListener('touchmove', e => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
-
     const categories = [ { id: "blurpacks", label: "blurpacks", x: -450, y: -250 }, { id: "musics", label: "musics", x: 500, y: -100 }, { id: "movies", label: "movies", x: -100, y: 450 } ];
-    
     const mainContainer = document.getElementById("main-container");
     const world = document.getElementById("world");
     const centerImg = document.getElementById("centerImage");
@@ -189,8 +186,7 @@
     const circle = document.getElementById("circle");
     const gallery = document.getElementById("image-gallery");
     
-    let isIntroPlaying = true;
-    let hasInteracted = false;
+    let isIntroPlaying = true, hasInteracted = false;
 
     const nodes = categories.map(cat => {
         const div = document.createElement("div"); div.className = "category-node"; div.textContent = cat.label;
@@ -201,7 +197,6 @@
     nodes.push({ el: centerImg, x: 0, y: 0 });
 
     window.onload = () => { setTimeout(() => { bgLayer.style.filter = "blur(7px)"; }, 100); };
-
     function startInteraction() {
         if (hasInteracted) return;
         hasInteracted = true;
@@ -209,7 +204,6 @@
         setTimeout(() => { circle.classList.add('visible'); }, 200); 
         setTimeout(() => { mainContainer.classList.remove('blurred'); isIntroPlaying = false; }, 500); 
     }
-
     window.addEventListener('click', startInteraction);
     window.addEventListener('touchstart', startInteraction);
 
@@ -219,84 +213,109 @@
         mainContainer.classList.add('blurred');
         requestAnimationFrame(() => { contentLayer.classList.add('active'); });
 
-        let items = [];
-        if (typeof myPortfolioData !== 'undefined' && myPortfolioData[catId]) {
-            items = myPortfolioData[catId];
-        }
-
-        if (items.length === 0) {
-            const rowCount = window.innerWidth >= 769 ? 2 : 1; 
-            for(let i=0; i<rowCount; i++) {
-                const filler = document.createElement("div"); filler.className = "tile-item filler";
-                gallery.appendChild(filler);
-            }
-            return;
-        }
+        let items = myPortfolioData[catId] || [];
 
         items.forEach(item => {
-            const tile = document.createElement("div"); tile.className = "tile-item";
+            const tile = document.createElement("div"); 
+            tile.className = "tile-item";
+            tile.dataset.trackPage = "0";
+
             const imgList = Array.isArray(item.img) ? item.img : [item.img];
-            let currentIdx = 0;
-            let isTransitioning = false;
+            let currentImgIdx = 0, isTransitioning = false;
+
+            let trackStr = typeof item.tracks === 'string' ? item.tracks : (Array.isArray(item.tracks) ? item.tracks.join(',') : "");
+            const trackArray = trackStr ? trackStr.split(',').map(t => t.trim()) : [];
+            const itemsPerPage = 7;
+            const totalPages = Math.ceil(trackArray.length / itemsPerPage);
 
             tile.onclick = async () => {
                 if (isTransitioning) return;
                 
+                // 규칙: 클릭한 타일 외에 다른 모든 열려있는 타일 닫기
+                document.querySelectorAll('.tile-item').forEach(t => {
+                    if (t !== tile) {
+                        t.classList.remove('show-info');
+                        t.dataset.trackPage = "0";
+                        // 음악 타일인 경우 첫 페이지로 리셋
+                        if (t.querySelector('.track-list')) {
+                            const originalTracks = t.dataset.originalTracks ? t.dataset.originalTracks.split(',') : [];
+                            updateMusicTracksOnly(t, originalTracks, 0, itemsPerPage);
+                        }
+                    }
+                });
+
                 if (catId === 'blurpacks' && imgList.length > 1) {
                     isTransitioning = true;
                     const imgs = tile.querySelectorAll('img');
-                    const oldImg = imgs[currentIdx];
-                    currentIdx = (currentIdx + 1) % imgList.length;
-                    const nextImg = imgs[currentIdx];
-
+                    const oldImg = imgs[currentImgIdx];
+                    currentImgIdx = (currentImgIdx + 1) % imgList.length;
+                    const nextImg = imgs[currentImgIdx];
                     try {
                         await nextImg.decode(); 
                         oldImg.classList.add('fading-out');
                         oldImg.classList.remove('active');
                         nextImg.classList.add('active');
-                        setTimeout(() => {
-                            oldImg.classList.remove('fading-out');
-                            isTransitioning = false;
-                        }, 1050);
-                    } catch (e) {
-                        oldImg.classList.remove('active');
-                        nextImg.classList.add('active');
-                        isTransitioning = false;
+                        setTimeout(() => { oldImg.classList.remove('fading-out'); isTransitioning = false; }, 500);
+                    } catch (e) { isTransitioning = false; }
+                } 
+                else if (catId === 'musics') {
+                    const trackListEl = tile.querySelector('.track-list');
+                    if (!tile.classList.contains('show-info')) {
+                        tile.classList.add('show-info');
+                    } else {
+                        let currentPage = parseInt(tile.dataset.trackPage);
+                        currentPage++;
+                        if (currentPage < totalPages) {
+                            isTransitioning = true;
+                            trackListEl.classList.add('switching'); 
+                            setTimeout(() => {
+                                tile.dataset.trackPage = currentPage.toString();
+                                updateMusicTracksOnly(tile, trackArray, currentPage, itemsPerPage);
+                                trackListEl.classList.remove('switching');
+                                isTransitioning = false;
+                            }, 250);
+                        } else {
+                            // 모든 트랙 확인 후 사진으로 복귀
+                            tile.classList.remove('show-info');
+                            tile.dataset.trackPage = "0";
+                            setTimeout(() => updateMusicTracksOnly(tile, trackArray, 0, itemsPerPage), 500);
+                        }
                     }
                 } else {
-                    const isShown = tile.classList.contains('show-info');
-                    document.querySelectorAll('.tile-item').forEach(t => t.classList.remove('show-info'));
-                    if(!isShown) tile.classList.add('show-info');
+                    tile.classList.toggle('show-info');
                 }
             };
 
             const copyrightHtml = item.author ? `<div class="copyright-text">ⓒ ${item.author}. All rights reserved.</div>` : "";
-            let overlayContent = (catId === "musics") ? renderMusicOverlay(item) : `<div style="font-size:1.5rem; font-weight:bold; margin-bottom: 10px;">${item.title}</div>`;
+            const imgsHtml = imgList.map((src, idx) => `<img src="${catId}/${src}" class="${idx === 0 ? 'active' : ''}">`).join('');
 
-            const imgsHtml = imgList.map((src, idx) => 
-                `<img src="${catId}/${src}" class="${idx === 0 ? 'active' : ''}" onerror="this.src='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII='">`
-            ).join('');
-
-            tile.innerHTML = `${imgsHtml}<div class="tile-overlay">${overlayContent}${copyrightHtml}</div>`;
+            tile.innerHTML = `${imgsHtml}<div class="tile-overlay"></div>${copyrightHtml}`;
+            
+            if (catId === "musics") {
+                tile.dataset.originalTracks = trackArray.join(',');
+                const overlay = tile.querySelector('.tile-overlay');
+                overlay.innerHTML = `<div class="music-container">
+                    <div class="album-title">${item.title}</div>
+                    <div class="artist-name">${item.artist}</div>
+                    <div class="track-list"></div>
+                </div>`;
+                updateMusicTracksOnly(tile, trackArray, 0, itemsPerPage);
+            } else {
+                tile.querySelector('.tile-overlay').innerHTML = `<div style="font-size:1.5rem; font-weight:bold;">${item.title}</div>`;
+            }
             gallery.appendChild(tile);
         });
-
-        if (items.length % 2 !== 0) {
-            const filler = document.createElement("div"); filler.className = "tile-item filler";
-            gallery.appendChild(filler);
-        }
     }
 
-    function renderMusicOverlay(item) {
-        let trackStr = typeof item.tracks === 'string' ? item.tracks : (Array.isArray(item.tracks) ? item.tracks.join(',') : "");
-        const trackArray = trackStr ? trackStr.split(',') : [];
-        const trackCount = trackArray.length;
-        let densityClass = trackCount >= 9 ? "very-dense" : (trackCount >= 5 ? "dense" : "");
-        const tracksHtml = trackArray.map(t => {
-            const tName = t.trim(); const isLow = tName.startsWith('*');
+    function updateMusicTracksOnly(tile, allTracks, page, limit) {
+        const trackListEl = tile.querySelector('.track-list');
+        if (!trackListEl) return;
+        const start = page * limit;
+        const pagedTracks = allTracks.slice(start, start + limit);
+        trackListEl.innerHTML = pagedTracks.map(tName => {
+            const isLow = tName.startsWith('*');
             return `<div class="track-item ${isLow ? 'low-priority' : ''}">${isLow ? tName.substring(1) : tName}</div>`;
         }).join('');
-        return `<div class="music-container"><div class="album-title">${item.title}</div><div class="artist-name">${item.artist}</div><div class="track-list ${densityClass}">${tracksHtml}</div></div>`;
     }
 
     window.onpopstate = () => { contentLayer.classList.remove('active'); mainContainer.classList.remove('blurred'); };
@@ -310,6 +329,7 @@
     circle.addEventListener('touchstart', e => start(e.touches[0].clientX, e.touches[0].clientY));
     window.addEventListener('touchmove', e => move(e.touches[0].clientX, e.touches[0].clientY));
     window.addEventListener('touchend', () => isDragging = false);
+    
     function animate() {
         if (!isDragging && !contentLayer.classList.contains('active')) { posX += vx; posY += vy; vx *= 0.94; vy *= 0.94; }
         world.style.transform = `translate(${posX}px, ${posY}px)`;
@@ -324,5 +344,4 @@
     animate();
 </script>
 </body>
-</html> 
-
+</html>
