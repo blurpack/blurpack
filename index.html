@@ -2,8 +2,8 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>erows – Distant Blur & Updated Grid</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no">
+    <title>erows – Static Typography</title>
     <style>
         :root {
             --bg-color: #ffffff;
@@ -17,21 +17,29 @@
             overflow: hidden;
             background: var(--bg-color);
             font-family: "Pretendard", sans-serif;
+            touch-action: none; 
+            user-select: none;
+            -webkit-user-select: none;
         }
 
-        /* 1. 배경 레이어: 속도 기반 블러 */
+        /* 배경 레이어: 이미지가 상하좌우에 딱 붙도록 설정 */
         .bg-layer {
-            position: fixed; inset: 0; z-index: 1; opacity: 0.4;
+            position: fixed; 
+            inset: 0; /* top, right, bottom, left 모두 0 */
+            z-index: 1; 
+            opacity: 0.5;
             transition: filter 0.2s ease-out;
             will-change: filter;
-        }
-        .bg-text-content {
-            padding: 20px; font-size: 8vmin; font-weight: 900;
-            line-height: 1.1; color: #000; word-break: break-all;
-            user-select: none;
+            pointer-events: none;
         }
 
-        /* 2. 월드 레이어 (중앙 원) */
+        .bg-layer img {
+            width: 100%;
+            height: 100%;
+            object-fit: fill; /* 이미지 비율이 변해도 화면에 꽉 채움 */
+            display: block;
+        }
+
         .viewport-circle {
             position: fixed;
             width: var(--circle-size); height: var(--circle-size);
@@ -43,6 +51,7 @@
             z-index: 10;
             cursor: grab;
             box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.15), 0 0 50px rgba(0, 0, 0, 0.05);
+            touch-action: none;
         }
 
         .world-plane { 
@@ -51,7 +60,6 @@
             will-change: transform; 
         }
 
-        /* 3. 카테고리 노드: 거리 기반 블러 적용 대상 */
         .category-node {
             position: absolute; left: 50%; top: 50%;
             font-size: 4rem; font-weight: 900; 
@@ -62,29 +70,20 @@
             white-space: nowrap;
         }
 
-        /* 4. 상세 페이지 레이어 및 수정된 그리드 */
         #content-layer {
             position: fixed; top: -100%; left: 0; width: 100%; height: 100%;
             z-index: 100; background: var(--bg-color); overflow-y: auto;
             transition: top 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+            touch-action: pan-y;
         }
         #content-layer.active { top: 0; }
 
-        .tile-grid { 
-            display: grid; 
-            /* 기본(모바일 등 좁은 화면): 가로 1개 배치 */
-            grid-template-columns: repeat(1, 1fr); 
-            width: 100%; 
-        }
-
+        .tile-grid { display: grid; grid-template-columns: repeat(1, 1fr); width: 100%; }
         .tile-item { position: relative; width: 100%; aspect-ratio: 1 / 1; overflow: hidden; background: #eee; }
         .tile-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
-        /* 데스크톱 등 큰 화면: 가로 2개 배치 */
         @media (min-width: 769px) {
-            .tile-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
+            .tile-grid { grid-template-columns: repeat(2, 1fr); }
         }
 
         @media (max-width: 768px) {
@@ -93,15 +92,21 @@
         }
     </style>
 </head>
-<body>
+<body oncontextmenu="return false;"> 
+    
+    <div class="bg-layer" id="bgLayer">
+        <img src="bpm.jpg" alt="background">
+    </div>
 
-    <div class="bg-layer"><div class="bg-text-content" id="bgText"></div></div>
-    <div class="viewport-circle" id="circle"><div class="world-plane" id="world"></div></div>
-    <div id="content-layer"><div class="tile-grid" id="image-gallery"></div></div>
+    <div class="viewport-circle" id="circle">
+        <div class="world-plane" id="world"></div>
+    </div>
+
+    <div id="content-layer">
+        <div class="tile-grid" id="image-gallery"></div>
+    </div>
 
 <script>
-    document.getElementById("bgText").textContent = "FOCUSED DISTANCE BLUR. ".repeat(400);
-
     const categories = [
         { id: "projects", label: "PROJECTS", x: -400, y: -300 },
         { id: "music",    label: "MUSIC",    x: 550,  y: -150 },
@@ -111,7 +116,7 @@
 
     const world = document.getElementById("world");
     const contentLayer = document.getElementById("content-layer");
-    const bgLayer = document.querySelector('.bg-layer');
+    const bgLayer = document.getElementById("bgLayer");
 
     const nodes = categories.map(cat => {
         const div = document.createElement("div");
@@ -158,30 +163,22 @@
             posX += vx; posY += vy; 
             vx *= friction; vy *= friction;
         }
-
         world.style.transform = `translate(${posX}px, ${posY}px)`;
-
-        // 거리 기반 블러 로직 유지
         nodes.forEach(node => {
             const currentX = node.x + posX;
             const currentY = node.y + posY;
             const distance = Math.sqrt(currentX * currentX + currentY * currentY);
-
-            // 중심에서 멀어질수록 블러 증가 (최대 15px)
             const blurVal = Math.min(15, distance / 40); 
-            
             node.el.style.transform = `translate(-50%, -50%) translate(${node.x}px, ${node.y}px)`;
             node.el.style.filter = `blur(${blurVal}px)`;
-            
-            // 거리에 따른 투명도 변화
             const opacityVal = Math.max(0.2, 1 - (distance / 800));
             node.el.style.opacity = opacityVal;
         });
 
         const speed = Math.sqrt(vx * vx + vy * vy);
-        const bgBlurVal = Math.min(30, 5 + (speed * 0.08));
+        const bgBlurVal = Math.min(20, (speed * 0.1)); 
         if (bgLayer) bgLayer.style.filter = `blur(${bgBlurVal}px)`;
-
+        
         requestAnimationFrame(animate);
     }
     animate();
