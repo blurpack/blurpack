@@ -15,7 +15,7 @@ const myPortfolioData = {
             "img": "NOWITZKI.webp", 
             "title": "NOWITZKI", 
             "artist": "빈지노", 
-            "tracks": "*Stink Kiss (Intro),Monet,침대에서/막걸리,여행 Again (Feat. Causious Clay),*Dope As (Interlude),Coca Cola Red (Feat. oygli),990(Feat. Kim Ximya),Lemon,바보같이 (Feat. Y2K92),*Trippy (Feat. Lance Skiiiwalker),*Crime (Bek Hyunjin, 250),Camp,*Sanso (Interlude),Change,단 하루,*Sandman,Radio,*Gym",
+            "tracks": "*Stink Kiss (Intro),Monet,침대에서/막걸리,여행 Again (Feat. Causious Clay),*Dope As (Interlude),Coca Cola Red (Feat. oygli),990 (Feat. Kim Ximya),Lemon,바보같이 (Feat. Y2K92),*Trippy (Feat. Lance Skiiiwalker),*Crime (Bek Hyunjin 250),Camp,*Sanso (Interlude),Change,단 하루,*Sandman,Radio,*Gym",
 			"author": "BANA"
         }
     ],
