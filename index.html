@@ -22,17 +22,13 @@
             touch-action: none; user-select: none; -webkit-user-select: none; 
         }
         
-        /* [메인 컨테이너] */
         #main-container {
             position: fixed; inset: 0; width: 100%; height: 100%;
             transition: filter 1.5s ease; 
             z-index: 10;
         }
 
-        /* 흐림 효과 (안개) */
-        #main-container.blurred {
-            filter: blur(50px);
-        }
+        #main-container.blurred { filter: blur(50px); }
 
         .bg-layer { 
             position: absolute; inset: 0; 
@@ -42,23 +38,15 @@
         }
         .bg-layer img { width: 100%; height: 100%; object-fit: fill; }
         
-        /* [원형 메뉴] */
         .viewport-circle { 
             position: absolute; width: var(--circle-size); height: var(--circle-size); 
             left: 50%; top: 50%; transform: translate(-50%, -50%); 
             border-radius: 50%; background: var(--bg-color); overflow: hidden; 
             box-shadow: inset 0 0 30px rgba(0,0,0,0.1), 0 0 50px rgba(0,0,0,0.05); 
-            
-            /* 초기 상태: 완전 투명 */
-            opacity: 0; 
-            /* 천천히 나타남 */
-            transition: opacity 1.5s ease; 
+            opacity: 0; transition: opacity 1.5s ease; 
         }
         
-        /* 등장 클래스 */
-        .viewport-circle.visible {
-            opacity: 1;
-        }
+        .viewport-circle.visible { opacity: 1; }
 
         .world-plane { position: absolute; width: 100%; height: 100%; }
         
@@ -75,15 +63,12 @@
             transform: translate(-50%, -50%); pointer-events: none; 
         }
         
-        /* 콘텐츠 레이어 */
         #content-layer { 
             position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
             z-index: 100; background: transparent; 
             overflow-y: auto; 
-            
             opacity: 0; filter: blur(30px); 
             pointer-events: none; 
-
             transition: opacity 1.5s ease, filter 1.5s ease;
         }
 
@@ -111,14 +96,51 @@
         .album-title { position: absolute; right: 30px; top: 50%; transform: translateY(-50%) rotate(90deg); transform-origin: center; white-space: nowrap; font-size: 1rem; font-weight: bold; }
         .artist-name { position: absolute; left: 30px; top: 50%; transform: translateY(-50%) rotate(-90deg); transform-origin: center; white-space: nowrap; font-size: 1rem; font-weight: bold; }
 
-        .track-list { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; width: 60%; }
-        .track-item { font-size: 0.95rem; text-align: center; line-height: 1.2; }
+        /* ========= [모바일 기준 (기본)] ========= */
+        .track-list { 
+            display: flex; flex-direction: column; 
+            align-items: center; justify-content: center; 
+            width: 60%; max-height: 80%; 
+            gap: 12px; 
+        }
+        .track-item { 
+            font-size: 0.95rem; 
+            text-align: center; line-height: 1.2; word-break: keep-all; 
+        }
         .track-item.low-priority { filter: blur(5px); opacity: 0.3; }
+
+        /* 모바일: 5곡 이상 (글자 줄임) */
+        .track-list.dense { gap: 8px; }
+        .track-list.dense .track-item { font-size: 0.8rem; }
+
+        /* 모바일: 9곡 이상 (글자 더 줄임) */
+        .track-list.very-dense { gap: 4px; }
+        .track-list.very-dense .track-item { font-size: 0.65rem; line-height: 1.1; }
 
         .tile-item.show-info img { filter: blur(30px); transform: scale(1.1); }
         .tile-item.show-info .tile-overlay { opacity: 1; }
 
-        @media (min-width: 769px) { .tile-grid { grid-template-columns: repeat(2, 1fr); } }
+
+        /* ========= [PC 화면 (769px 이상) - 화끈하게 키움] ========= */
+        @media (min-width: 769px) { 
+            .tile-grid { grid-template-columns: repeat(2, 1fr); } 
+
+            /* 제목도 시원하게 키움 */
+            .album-title { font-size: 1.4rem; right: 50px; } 
+            .artist-name { font-size: 1.4rem; left: 50px; }
+
+            /* 1. PC 기본 (4곡 이하): 아주 크게 (24px 정도) */
+            .track-list { gap: 24px; }
+            .track-item { font-size: 1.5rem; } 
+
+            /* 2. PC 5~8곡 (Dense): 줄이지 않음! 공간 충분함. */
+            .track-list.dense { gap: 18px; }
+            .track-list.dense .track-item { font-size: 1.4rem; } 
+
+            /* 3. PC 9곡 이상 (Very Dense): 아주 살짝만 줄임 (여전히 큼) */
+            .track-list.very-dense { gap: 12px; }
+            .track-list.very-dense .track-item { font-size: 1.2rem; }
+        }
     </style>
 </head>
 <body oncontextmenu="return false;">
@@ -160,28 +182,24 @@
     });
     nodes.push({ el: centerImg, x: 0, y: 0 });
 
-    // [1단계] 로드 시: 배경만 선명해짐 (원은 안 보임)
+    /* 사용자 설정 유지: 100ms */
     window.onload = () => { 
         setTimeout(() => { 
             bgLayer.style.filter = "blur(7px)"; 
         }, 100);
     };
 
-    // [2단계] 인터랙션 시작 함수
+    /* 사용자 설정 유지: 200ms, 500ms */
     function startInteraction() {
         if (hasInteracted) return;
         hasInteracted = true;
 
-        // 1. 먼저 전체 화면을 흐리게 만듦 (안개 생성)
         mainContainer.classList.add('blurred');
 
-        // 2. [수정됨] 0.6초 뒤에 원을 등장시킴 (한 박자 늦게)
-        // 안개가 충분히 낀 상태에서 원이 스르륵 나옴
         setTimeout(() => {
             circle.classList.add('visible');
         }, 200); 
 
-        // 3. 충분한 시간이 지난 뒤 (1.8초) 안개를 걷음
         setTimeout(() => {
             mainContainer.classList.remove('blurred');
             isIntroPlaying = false; 
@@ -190,7 +208,6 @@
 
     window.addEventListener('click', startInteraction);
     window.addEventListener('touchstart', startInteraction);
-
 
     function openPage(catId) {
         history.pushState({ page: catId }, catId, `#${catId}`);
@@ -220,16 +237,27 @@
 
             let overlayHtml = "";
             if (catId === "musics") {
-                const tracks = item.tracks ? item.tracks.split(',').map(t => {
+                const trackArray = item.tracks ? item.tracks.split(',') : [];
+                const trackCount = trackArray.length;
+                
+                // 클래스만 붙여주고, 실제 크기 조절은 CSS 미디어 쿼리에서 담당함
+                let densityClass = "";
+                if (trackCount >= 9) {
+                    densityClass = "very-dense";
+                } else if (trackCount >= 5) {
+                    densityClass = "dense";
+                }
+
+                const tracksHtml = trackArray.map(t => {
                     const tName = t.trim(); const isLow = tName.startsWith('*');
                     return `<div class="track-item ${isLow ? 'low-priority' : ''}">${isLow ? tName.substring(1) : tName}</div>`;
-                }).join('') : '';
+                }).join('');
                 
                 overlayHtml = `
                     <div class="music-container">
                         <div class="album-title">${item.title}</div>
                         <div class="artist-name">${item.artist}</div>
-                        <div class="track-list">${tracks}</div>
+                        <div class="track-list ${densityClass}">${tracksHtml}</div>
                     </div>
                 `;
             } else {
