@@ -11,7 +11,7 @@ const myPortfolioData = {
             "tracks": "틀린질문,Lester Burnham,섬 (Queen Of Diamonds),상수역,광견일기,Bollywood,빨간 나를,*Put Me On Drugs,*하와이 검은 모래,*맑고 묽게,*그늘은 그림자로,피와 갈증 (King Of Hurts)",
 			"author": "비스포크"
         },
-	{ 
+		{ 
             "img": "NOWITZKI.webp", 
             "title": "NOWITZKI", 
             "artist": "빈지노", 
@@ -21,8 +21,9 @@ const myPortfolioData = {
     ],
     "movies": [
         {
-	    "img": "이터널 선샤인.webp",
-	    "title": "Eternal Sunshine of the Spotless Mind",
-	    "author": "2004 Anonymous Content & This Is That Corp"
+	    	"img": "이터널 선샤인.webp",
+	    	"title": "Eternal Sunshine of the Spotless Mind",
+	    	"author": "2004 Anonymous Content & This Is That Corp"
+		}
     ]
 };
