@@ -75,6 +75,53 @@
             :root { --circle-size: 85vmin; --center-img-size: 180px; }
             .category-node { font-size: 2rem; }
         }
+        /* 개별 아이템 컨테이너 */
+.tile-item {
+    position: relative;
+    width: 100%;
+    cursor: pointer;
+    overflow: hidden;
+}
+
+.tile-item img {
+    width: 100%;
+    display: block;
+    transition: filter 0.3s ease; /* 블러 애니메이션 속도 */
+}
+
+/* 글씨가 들어갈 검은색 반투명 레이어 */
+.tile-overlay {
+    position: absolute;
+    inset: 0; /* 전체 꽉 채우기 */
+    background: rgba(0, 0, 0, 0.4); /* 배경 살짝 어둡게 */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    opacity: 0; /* 처음엔 안 보임 */
+    transition: opacity 0.3s ease;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+/* 텍스트 스타일 */
+.info-text {
+    color: white;
+    text-shadow: 0 0 10px rgba(0,0,0,0.5);
+}
+
+.info-text h3 { margin: 0; font-size: 1.5rem; }
+.info-text p { margin: 5px 0; font-size: 1rem; }
+.info-text .tracks { font-size: 0.8rem; opacity: 0.8; margin-top: 10px; }
+
+/* [핵심] 클릭되어 show-info 클래스가 붙었을 때의 모습 */
+.tile-item.show-info img {
+    filter: blur(15px) brightness(0.7); /* 사진 블러 및 어둡게 */
+}
+
+.tile-item.show-info .tile-overlay {
+    opacity: 1; /* 글씨 보이기 */
+}
     </style>
 </head>
 <body oncontextmenu="return false;"> 
@@ -94,6 +141,42 @@
     </div>
 
 <script>
+    async function openPage(folderName) {
+        history.pushState({ page: folderName }, folderName, `#${folderName}`);
+        gallery.innerHTML = "<p style='padding:20px;'>loading...</p>"; 
+        contentLayer.classList.add('active');
+
+        try {
+            const response = await fetch(`./${folderName}/data.json`);
+            const data = await response.json();
+            gallery.innerHTML = ""; 
+
+            data.forEach(item => {
+                const tile = document.createElement("div");
+                tile.className = "tile-item"; // 기본 상태
+                
+                // 클릭하면 'show-info' 클래스를 껐다 켰다 함
+                tile.onclick = () => tile.classList.toggle('show-info');
+
+                let infoContent = "";
+                if (folderName === "musics") {
+                    infoContent = `<h3>${item.title}</h3><p>${item.artist}</p><p class="tracks">${item.tracks}</p>`;
+                } else {
+                    infoContent = `<h3>${item.title}</h3>`;
+                }
+
+                tile.innerHTML = `
+                    <img src="${folderName}/${item.img}" alt="${item.title}">
+                    <div class="tile-overlay">
+                        <div class="info-text">${infoContent}</div>
+                    </div>
+                `;
+                gallery.appendChild(tile);
+            });
+        } catch (error) {
+            gallery.innerHTML = `<p style='padding:20px;'>데이터 로드 실패</p>`;
+        }
+    }
     // 1. 카테고리 설정 (소문자, 새로운 3종)
     const categories = [
         { id: "blurpacks", label: "blurpacks", x: -400, y: -250 },
