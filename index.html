@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no">
-    <title>blurpack – Static Typography</title>
+    <title>blurpack</title>
     <style>
         :root {
             --bg-color: #ffffff;
@@ -23,68 +23,36 @@
             -webkit-user-select: none;
         }
 
-        /* 인트로 배경 레이어 */
         .bg-layer {
-            position: fixed; 
-            inset: 0;
-            z-index: 1; 
-            opacity: 0.9;
-            filter: blur(400px); 
-            transition: filter 0.8s ease-out; /* 사용자가 설정한 0.8초 유지 */
-            will-change: filter;
+            position: fixed; inset: 0; z-index: 1; opacity: 0.9;
+            filter: blur(400px); transition: filter 0.8s ease-out;
             pointer-events: none;
         }
+        .bg-layer img { width: 100%; height: 100%; object-fit: fill; }
 
-        .bg-layer img {
-            width: 100%;
-            height: 100%;
-            object-fit: fill;
-            display: block;
-        }
-
-        /* 메인 원형 뷰포트 */
         .viewport-circle {
-            position: fixed;
-            width: var(--circle-size); height: var(--circle-size);
-            left: 50%; top: 50%;
-            transform: translate(-50%, -50%);
-            border-radius: 50%;
-            background: var(--bg-color);
-            overflow: hidden;
-            z-index: 10;
-            cursor: grab;
+            position: fixed; width: var(--circle-size); height: var(--circle-size);
+            left: 50%; top: 50%; transform: translate(-50%, -50%);
+            border-radius: 50%; background: var(--bg-color);
+            overflow: hidden; z-index: 10; cursor: grab;
             box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.15), 0 0 50px rgba(0, 0, 0, 0.05);
-            touch-action: none;
-            
-            /* 추가된 부분: 중앙 원도 초기에 블러 처리 */
-            opacity: 0;
-            filter: blur(400px); 
+            opacity: 0; filter: blur(400px); 
             transition: filter 0.8s ease-out, opacity 0.5s ease-out;
-            will-change: filter, opacity;
         }
 
-        .world-plane { 
-            position: absolute; 
-            width: 100%; height: 100%; 
-            will-change: transform; 
-        }
+        .world-plane { position: absolute; width: 100%; height: 100%; }
 
         .category-node {
             position: absolute; left: 50%; top: 50%;
-            font-size: 4rem; font-weight: 900; 
-            cursor: pointer; 
-            color: var(--text-color);
-            will-change: filter, transform, opacity;
-            white-space: nowrap;
+            font-size: 3.5rem; font-weight: 900; 
+            cursor: pointer; color: var(--text-color);
+            white-space: nowrap; text-transform: lowercase; /* 소문자 표시 */
         }
 
         .center-image-node {
             position: absolute; left: 50%; top: 50%;
-            width: var(--center-img-size);
-            height: auto;
-            transform: translate(-50%, -50%);
-            will-change: filter, transform, opacity;
-            pointer-events: none;
+            width: var(--center-img-size); height: auto;
+            transform: translate(-50%, -50%); pointer-events: none;
         }
 
         #content-layer {
@@ -94,17 +62,18 @@
         }
         #content-layer.active { top: 0; }
 
+        /* 갤러리 디자인 */
         .tile-grid { display: grid; grid-template-columns: repeat(1, 1fr); width: 100%; }
-        .tile-item { position: relative; width: 100%; aspect-ratio: 1 / 1; overflow: hidden; background: #eee; }
-        .tile-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .tile-item { position: relative; width: 100%; overflow: hidden; border-bottom: 1px solid #eee; padding-bottom: 20px;}
+        .tile-item img { width: 100%; aspect-ratio: 1/1; object-fit: cover; display: block; }
+        .tile-info { padding: 15px; color: black; }
+        .tile-info h3 { margin: 0; font-size: 1.2rem; }
+        .tile-info p { margin: 5px 0 0; font-size: 0.9rem; opacity: 0.7; }
 
-        @media (min-width: 769px) {
-            .tile-grid { grid-template-columns: repeat(2, 1fr); }
-        }
-
+        @media (min-width: 769px) { .tile-grid { grid-template-columns: repeat(2, 1fr); } }
         @media (max-width: 768px) {
             :root { --circle-size: 85vmin; --center-img-size: 180px; }
-            .category-node { font-size: 2.5rem; }
+            .category-node { font-size: 2rem; }
         }
     </style>
 </head>
@@ -125,11 +94,11 @@
     </div>
 
 <script>
+    // 1. 카테고리 설정 (소문자, 새로운 3종)
     const categories = [
-        { id: "projects", label: "PROJECTS", x: -450, y: -250 },
-        { id: "music",    label: "MUSIC",    x: 450,  y: -300 },
-        { id: "movie",    label: "MOVIE",    x: -400, y: 350  },
-        { id: "profile",  label: "PROFILE",  x: 400,  y: 300    }
+        { id: "blurpacks", label: "blurpacks", x: -400, y: -250 },
+        { id: "musics",    label: "musics",    x: 450,  y: -100 },
+        { id: "movies",    label: "movies",    x: -100, y: 350  }
     ];
 
     const world = document.getElementById("world");
@@ -137,55 +106,67 @@
     const contentLayer = document.getElementById("content-layer");
     const bgLayer = document.getElementById("bgLayer");
     const circle = document.getElementById("circle");
+    const gallery = document.getElementById("image-gallery");
 
     let isIntroPlaying = true;
 
+    // 노드 생성
     const nodes = categories.map(cat => {
         const div = document.createElement("div");
         div.className = "category-node";
         div.textContent = cat.label;
-        div.onclick = () => { if (!isIntroPlaying && Math.abs(vx) < 1.5) openPage(cat.label); };
+        div.onclick = () => { if (!isIntroPlaying && Math.abs(vx) < 1.5) openPage(cat.id); };
         world.appendChild(div);
-        return { el: div, x: cat.x, y: cat.y, type: 'text' };
+        return { el: div, x: cat.x, y: cat.y };
     });
-
-    nodes.push({ el: centerImg, x: 0, y: 0, type: 'image' });
+    nodes.push({ el: centerImg, x: 0, y: 0 });
 
     window.onload = () => {
         setTimeout(() => {
-            // 배경과 중앙 원 모두 블러를 7px로 줄임
             bgLayer.style.filter = "blur(7px)";
-            circle.style.filter = "blur(0px)"; // 원 내부 콘텐츠의 선명도를 위해 0px 혹은 아주 낮은 값 권장
+            circle.style.filter = "blur(0px)";
             circle.style.opacity = "1";
-            
             setTimeout(() => { isIntroPlaying = false; }, 800);
         }, 100);
     };
 
-    function openPage(name) {
-        history.pushState({ page: name }, name, `#${name}`);
-        const grid = document.getElementById("image-gallery");
-        grid.innerHTML = ""; 
-        for (let i = 0; i < 16; i++) {
-            const tile = document.createElement("div");
-            tile.className = "tile-item";
-            const img = document.createElement("img");
-            img.src = `https://picsum.photos/800/800?random=${name}${i}`;
-            tile.appendChild(img);
-            grid.appendChild(tile);
-        }
+    // 2. 페이지 열기 및 데이터 로드 기능
+    async function openPage(folderName) {
+        history.pushState({ page: folderName }, folderName, `#${folderName}`);
+        gallery.innerHTML = "<p style='padding:20px;'>loading...</p>"; 
         contentLayer.classList.add('active');
+
+        try {
+            // 해당 폴더의 data.json을 읽어옴
+            const response = await fetch(`./${folderName}/data.json`);
+            const data = await response.json();
+            
+            gallery.innerHTML = ""; // 로딩 문구 제거
+
+            data.forEach(item => {
+                const tile = document.createElement("div");
+                tile.className = "tile-item";
+                tile.innerHTML = `
+                    <img src="${folderName}/${item.img}" alt="${item.title}">
+                    <div class="tile-info">
+                        <h3>${item.title}</h3>
+                        <p>${item.desc}</p>
+                    </div>
+                `;
+                gallery.appendChild(tile);
+            });
+        } catch (error) {
+            gallery.innerHTML = `<p style='padding:20px; color:red;'>데이터를 불러올 수 없습니다. <br> ${folderName}/data.json 파일이 있는지 확인하세요.</p>`;
+        }
     }
 
     window.onpopstate = () => { if (contentLayer.classList.contains('active')) contentLayer.classList.remove('active'); };
 
+    // 애니메이션 및 인터랙션 로직 (기존 유지)
     let posX = 0, posY = 0, vx = 0, vy = 0, isDragging = false, lastX = 0, lastY = 0;
     const friction = 0.94;
 
-    const start = (x, y) => { 
-        if(isIntroPlaying || contentLayer.classList.contains('active')) return; 
-        isDragging = true; lastX = x; lastY = y; 
-    };
+    const start = (x, y) => { if(isIntroPlaying || contentLayer.classList.contains('active')) return; isDragging = true; lastX = x; lastY = y; };
     const move = (x, y) => { if (!isDragging) return; const dx = x - lastX, dy = y - lastY; posX += dx; posY += dy; vx = dx; vy = dy; lastX = x; lastY = y; };
     
     circle.addEventListener('mousedown', e => start(e.clientX, e.clientY));
@@ -197,34 +178,19 @@
 
     function animate() {
         if (!isDragging && !contentLayer.classList.contains('active')) {
-            posX += vx; posY += vy; 
-            vx *= friction; vy *= friction;
+            posX += vx; posY += vy; vx *= friction; vy *= friction;
         }
         world.style.transform = `translate(${posX}px, ${posY}px)`;
-        
         nodes.forEach(node => {
             const currentX = node.x + posX;
             const currentY = node.y + posY;
             const distance = Math.sqrt(currentX * currentX + currentY * currentY);
-            
             const blurVal = Math.min(15, distance / 40); 
             node.el.style.transform = `translate(-50%, -50%) translate(${node.x}px, ${node.y}px)`;
-            
-            // 인트로 중에는 인라인 스타일 blur가 CSS transition을 방해하지 않도록 조건부 적용
-            if (!isIntroPlaying) {
-                node.el.style.filter = `blur(${blurVal}px)`;
-            }
-            
-            const opacityVal = Math.max(0.1, 1 - (distance / 700));
-            node.el.style.opacity = opacityVal;
+            if (!isIntroPlaying) node.el.style.filter = `blur(${blurVal}px)`;
+            node.el.style.opacity = Math.max(0.1, 1 - (distance / 700));
         });
-
-        if (!isIntroPlaying) {
-            const speed = Math.sqrt(vx * vx + vy * vy);
-            const bgBlurVal = 7 + (speed * 0.1); 
-            bgLayer.style.filter = `blur(${bgBlurVal}px)`;
-        }
-        
+        if (!isIntroPlaying) bgLayer.style.filter = `blur(${7 + (Math.sqrt(vx*vx+vy*vy)*0.1)}px)`;
         requestAnimationFrame(animate);
     }
     animate();
