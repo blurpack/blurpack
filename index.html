@@ -2,353 +2,121 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>blurpack</title>
-    
-    <script src="data.js"></script>
-
     <style>
-        :root {
-            --bg-color: #ffffff;
-            --text-color: #000000;
-            --circle-size: 80vmin;
-            --center-img-size: 340px; 
-            --transition-speed: 0.5s; 
+        /* 1. 스크롤이 가능하도록 설정 */
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            background-color: white; /* 배경 이미지 로드 전 대비 */
         }
 
-        html, body { 
-            margin: 0; padding: 0; width: 100%; height: 100%; 
-            overflow: hidden; background: var(--bg-color); 
-            font-family: "Pretendard", sans-serif; 
-            touch-action: none; user-select: none; -webkit-user-select: none; 
-        }
-        
-        #main-container {
-            position: fixed; inset: 0; width: 100%; height: 100%;
-            transition: filter 1.5s ease; 
-            z-index: 10;
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: white;
         }
 
-        #main-container.blurred { filter: blur(50px); }
-
-        .bg-layer { 
-            position: absolute; inset: 0; 
-            opacity: 0.9; 
-            filter: blur(400px); 
-            transition: filter 0.65s ease-out; 
-        }
-        .bg-layer img { width: 100%; height: 100%; object-fit: fill; }
-        
-        .viewport-circle { 
-            position: absolute; width: var(--circle-size); height: var(--circle-size); 
-            left: 50%; top: 50%; transform: translate(-50%, -50%); 
-            border-radius: 50%; background: var(--bg-color); overflow: hidden; 
-            box-shadow: inset 0 0 100px rgba(100,100,100,2.2), 0 0 25px rgba(0,0,0,0.05); 
-            opacity: 0; transition: opacity 0.8s ease;
-        }
-        
-        .viewport-circle.visible { opacity: 1; }
-
-        .world-plane { position: absolute; width: 100%; height: 100%; }
-        
-        .category-node { 
-            position: absolute; left: 50%; top: 50%; 
-            font-size: 3rem; font-weight: 900; 
-            cursor: pointer; color: var(--text-color); 
-            white-space: nowrap; text-transform: lowercase; 
-        }
-        
-        .center-image-node { 
-            position: absolute; left: 50%; top: 50%; 
-            width: var(--center-img-size); height: auto; 
-            transform: translate(-50%, -50%); pointer-events: none; 
-        }
-        
-        #content-layer { 
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-            z-index: 100; background: transparent; 
-            overflow-y: auto; 
-            opacity: 0; filter: blur(30px); 
-            pointer-events: none; 
-            transition: opacity 1.5s ease, filter 1.5s ease;
+        /* 배경 전용 레이어 생성 */
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+    
+            /* 배경 설정 */
+            background-image: url('background.webp');
+            background-size: 100% 100%;
+            background-position: center;
+            background-repeat: no-repeat;
+            
+            /* 가우시안 블러 상시 적용 (수치로 강도 조절) */
+            filter: blur(5px); 
+    
+            /* 블러로 인해 테두리가 하얗게 뜨는 현상 방지 */
+            /*transform: scale(1.1); 
+    
+            /*z-index: -1; /* 글자 뒤로 보냄 */
         }
 
-        #content-layer.active { 
-            opacity: 1; filter: blur(0px);
-            pointer-events: auto;
-            background: rgba(255, 255, 255, 0.85); 
+        /* 중앙 정렬을 위한 컨테이너 */
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 70vw 0;
+            width: 100%;
         }
 
-        .tile-grid { display: grid; grid-template-columns: repeat(1, 1fr); width: 100%; min-height: 100vh; background-color: #ffffff; }
-        
-        .tile-item { 
-            position: relative; width: 100%; aspect-ratio: 1 / 1; 
-            cursor: pointer; overflow: hidden; 
-            background: #000; 
-            transform: translate3d(0,0,0); /* 하드웨어 가속 */
-        }
-        
-        .tile-item img { 
-            position: absolute; inset: 0;
-            width: 100%; height: 100%; object-fit: cover; display: block; 
-            transform: scale(1.0); /* 사진 잘림 방지 */
-            opacity: 0; 
-            filter: blur(0.1px); /* GPU 미리 깨우기 */
-            will-change: filter, opacity;
-            backface-visibility: hidden;
-            decoding: async;
-        }
-
-        .tile-item img.active {
-            opacity: 1;
-            filter: blur(0px);
-            z-index: 3;
-            transition: filter var(--transition-speed) cubic-bezier(0.33, 1, 0.68, 1), 
-                        opacity var(--transition-speed) cubic-bezier(0.33, 1, 0.68, 1);
-        }
-
-        .tile-item img.fading-out {
-            opacity: 1;
-            filter: blur(40px);
-            z-index: 2;
-            transition: filter var(--transition-speed) cubic-bezier(0.33, 1, 0.68, 1);
-        }
-
-        .tile-item.show-info img.active { 
-            filter: blur(40px); 
-            transform: scale(1.0);
-        }
-
-        .tile-overlay {
-            position: absolute; inset: 0;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            color: rgba(255, 255, 255, 0.75); 
-            opacity: 0; transition: opacity var(--transition-speed) ease;
-            pointer-events: none; z-index: 10;
-        }
-
-        .music-container { position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
-        .album-title { position: absolute; right: 30px; top: 50%; transform: translateY(-50%) rotate(90deg); transform-origin: center; white-space: nowrap; font-size: 1rem; font-weight: bold; }
-        .artist-name { position: absolute; left: 30px; top: 50%; transform: translateY(-50%) rotate(-90deg); transform-origin: center; white-space: nowrap; font-size: 1rem; font-weight: bold; }
-
-        .copyright-text {
-            position: absolute; bottom: 20px; width: 100%; text-align: center;
-            font-size: 0.6rem; opacity: 0.6; font-weight: 300;
-            letter-spacing: 0.05em; z-index: 20; color: #fff;
-        }
-
-        .track-list { 
-            display: flex; flex-direction: column; align-items: center; justify-content: center; 
-            width: 60%; max-height: 80%; gap: 12px;
-            transition: filter var(--transition-speed) cubic-bezier(0.33, 1, 0.68, 1), 
-                        opacity var(--transition-speed) cubic-bezier(0.33, 1, 0.68, 1);
-            will-change: filter, opacity;
-        }
-        
-        .track-list.switching {
-            filter: blur(30px);
-            opacity: 0;
-        }
-
-        .track-item { font-size: 0.95rem; text-align: center; line-height: 1.2; word-break: keep-all; }
-        .track-item.low-priority { filter: blur(5px); opacity: 0.3; }
-
-        .tile-item.show-info .tile-overlay { opacity: 1; }
-        .tile-item.filler { background-color: #ffffff !important; cursor: default; pointer-events: none; border: none; }
-
-        @media (min-width: 769px) { 
-            .tile-grid { grid-template-columns: repeat(2, 1fr); } 
-            .album-title { font-size: 1.4rem; right: 50px; } 
-            .artist-name { font-size: 1.4rem; left: 50px; }
-            .track-list { gap: 24px; }
-            .track-item { font-size: 1.5rem; } 
-            .copyright-text { font-size: 0.75rem; bottom: 30px; }
+        .project-link {
+            display: block;
+            color: #6D3BFF;
+            text-decoration: none;
+            font-size: 10vw;
+            font-weight: 1000;
+            margin: 1vh 0; /* 각 항목 간의 간격 */
+            cursor: pointer;
+            text-align: center;
+            will-change: filter; /* 성능 최적화 */
         }
     </style>
 </head>
-<body oncontextmenu="return false;">
-    <div id="main-container">
-        <div class="bg-layer" id="bgLayer"><img src="bpm.webp"></div>
-        <div class="viewport-circle" id="circle">
-            <div class="world-plane" id="world">
-                <img src="bp_logo_c.webp" class="center-image-node" id="centerImage">
-            </div>
-        </div>
+<body>
+
+    <div class="container">
+        <a href="./Test1/" class="project-link">Hello</a>
+        <a href="./Test2/" class="project-link">My</a>
+        <a href="./Test3/" class="project-link">Name</a>
+        <a href="./Test4/" class="project-link">IS</a>
+        <a href="./Test5/" class="project-link">Ross</a>
+        <a href="./Test6/" class="project-link">Nice</a>
+        <a href="./Test7/" class="project-link">TO</a>
+        <a href="./Test8/" class="project-link">mEEt</a>
+        <a href="./Test9/" class="project-link">YOU</a>
+        <a href="./Test10/" class="project-link">BLPK</a>
     </div>
-    <div id="content-layer"><div class="tile-grid" id="image-gallery"></div></div>
 
-<script>
-    const categories = [ { id: "blurpacks", label: "blurpacks", x: -450, y: -250 }, { id: "musics", label: "musics", x: 500, y: -100 }, { id: "movies", label: "movies", x: -100, y: 450 } ];
-    const mainContainer = document.getElementById("main-container");
-    const world = document.getElementById("world");
-    const centerImg = document.getElementById("centerImage");
-    const contentLayer = document.getElementById("content-layer");
-    const bgLayer = document.getElementById("bgLayer");
-    const circle = document.getElementById("circle");
-    const gallery = document.getElementById("image-gallery");
-    
-    let isIntroPlaying = true, hasInteracted = false;
+    <script>
+        const links = document.querySelectorAll('.project-link');
 
-    const nodes = categories.map(cat => {
-        const div = document.createElement("div"); div.className = "category-node"; div.textContent = cat.label;
-        div.onclick = () => { if (!isIntroPlaying && hasInteracted) openPage(cat.id); };
-        world.appendChild(div);
-        return { el: div, x: cat.x, y: cat.y };
-    });
-    nodes.push({ el: centerImg, x: 0, y: 0 });
+        function updateBlur() {
+            const centerY = window.innerHeight / 2;
 
-    window.onload = () => { setTimeout(() => { bgLayer.style.filter = "blur(7px)"; }, 100); };
-    function startInteraction() {
-        if (hasInteracted) return;
-        hasInteracted = true;
-        mainContainer.classList.add('blurred');
-        setTimeout(() => { circle.classList.add('visible'); }, 200); 
-        setTimeout(() => { mainContainer.classList.remove('blurred'); isIntroPlaying = false; }, 500); 
-    }
-    window.addEventListener('click', startInteraction);
-    window.addEventListener('touchstart', startInteraction);
-
-    function openPage(catId) {
-        history.pushState({ page: catId }, catId, `#${catId}`);
-        gallery.innerHTML = ""; 
-        mainContainer.classList.add('blurred');
-        requestAnimationFrame(() => { contentLayer.classList.add('active'); });
-
-        let items = myPortfolioData[catId] || [];
-
-        items.forEach(item => {
-            const tile = document.createElement("div"); 
-            tile.className = "tile-item";
-            tile.dataset.trackPage = "0";
-
-            const imgList = Array.isArray(item.img) ? item.img : [item.img];
-            let currentImgIdx = 0, isTransitioning = false;
-
-            // 구분자 | 사용
-            let trackStr = typeof item.tracks === 'string' ? item.tracks : (Array.isArray(item.tracks) ? item.tracks.join('|') : "");
-            const trackArray = trackStr ? trackStr.split('|').map(t => t.trim()) : [];
-            const itemsPerPage = 7;
-            const totalPages = Math.ceil(trackArray.length / itemsPerPage);
-
-            tile.onclick = async () => {
-                if (isTransitioning) return;
+            links.forEach(link => {
+                const rect = link.getBoundingClientRect();
+                const linkCenter = rect.top + (rect.height / 2);
                 
-                const activeImg = tile.querySelector('img.active');
-                if (activeImg && !activeImg.complete) {
-                    await activeImg.decode().catch(() => {});
-                }
+                // 화면 중앙으로부터의 거리 계산
+                const distance = Math.abs(centerY - linkCenter);
+                
+                // 블러 강도 계산: 중앙에서 멀어질수록 수치 증가 (조절 가능)
+                // 150px 이상 멀어지면 블러가 눈에 띄게 시작됨
+                const blurValue = Math.max(0, (distance - 100) / 40); 
+                
+                link.style.filter = `blur(${blurValue}px)`;
+                
+                // 투명도 조절 (선택 사항: 중앙이 아닐수록 흐릿해짐)
+                // const opacityValue = Math.max(0.2, 1 - (distance / (window.innerHeight / 1.5)));
+                // link.style.opacity = opacityValue;
+            });
+        }
 
-                requestAnimationFrame(() => {
-                    document.querySelectorAll('.tile-item').forEach(t => {
-                        if (t !== tile && t.classList.contains('show-info')) {
-                            t.classList.remove('show-info');
-                            t.dataset.trackPage = "0";
-                            const otherTracks = t.dataset.tracksRaw ? t.dataset.tracksRaw.split('|') : [];
-                            if (otherTracks.length > 0) updateMusicTracksOnly(t, otherTracks, 0, itemsPerPage);
-                        }
-                    });
-                });
+        // 스크롤 시 실시간 실행
+        window.addEventListener('scroll', updateBlur);
+        // 화면 크기 변경 시 대응
+        window.addEventListener('resize', updateBlur);
+        // 초기 로드 시 실행
+        updateBlur();
+    </script>
 
-                if (catId === 'blurpacks' && imgList.length > 1) {
-                    isTransitioning = true;
-                    const imgs = tile.querySelectorAll('img');
-                    const oldImg = imgs[currentImgIdx];
-                    currentImgIdx = (currentImgIdx + 1) % imgList.length;
-                    const nextImg = imgs[currentImgIdx];
-                    try {
-                        await nextImg.decode(); 
-                        oldImg.classList.add('fading-out');
-                        oldImg.classList.remove('active');
-                        nextImg.classList.add('active');
-                        setTimeout(() => { oldImg.classList.remove('fading-out'); isTransitioning = false; }, 500);
-                    } catch (e) { isTransitioning = false; }
-                } 
-                else if (catId === 'musics') {
-                    const trackListEl = tile.querySelector('.track-list');
-                    if (!tile.classList.contains('show-info')) {
-                        requestAnimationFrame(() => tile.classList.add('show-info'));
-                    } else {
-                        let currentPage = parseInt(tile.dataset.trackPage);
-                        currentPage++;
-                        if (currentPage < totalPages) {
-                            isTransitioning = true;
-                            trackListEl.classList.add('switching'); 
-                            
-                            setTimeout(() => {
-                                tile.dataset.trackPage = currentPage.toString();
-                                updateMusicTracksOnly(tile, trackArray, currentPage, itemsPerPage);
-                                requestAnimationFrame(() => {
-                                    trackListEl.classList.remove('switching');
-                                    isTransitioning = false;
-                                });
-                            }, 250); 
-                        } else {
-                            tile.classList.remove('show-info');
-                            tile.dataset.trackPage = "0";
-                            setTimeout(() => updateMusicTracksOnly(tile, trackArray, 0, itemsPerPage), 400);
-                        }
-                    }
-                } else {
-                    tile.classList.toggle('show-info');
-                }
-            };
-
-            const copyrightHtml = item.author ? `<div class="copyright-text">ⓒ ${item.author}. All rights reserved.</div>` : "";
-            const imgsHtml = imgList.map((src, idx) => `<img src="${catId}/${src}" class="${idx === 0 ? 'active' : ''}" decoding="async">`).join('');
-
-            tile.innerHTML = `${imgsHtml}<div class="tile-overlay"></div>${copyrightHtml}`;
-            
-            if (catId === "musics") {
-                tile.dataset.tracksRaw = trackArray.join('|');
-                const overlay = tile.querySelector('.tile-overlay');
-                overlay.innerHTML = `<div class="music-container">
-                    <div class="album-title">${item.title}</div>
-                    <div class="artist-name">${item.artist}</div>
-                    <div class="track-list"></div>
-                </div>`;
-                updateMusicTracksOnly(tile, trackArray, 0, itemsPerPage);
-            } else {
-                tile.querySelector('.tile-overlay').innerHTML = `<div style="font-size:1.5rem; font-weight:bold;">${item.title}</div>`;
-            }
-            gallery.appendChild(tile);
-        });
-    }
-
-    function updateMusicTracksOnly(tile, allTracks, page, limit) {
-        const trackListEl = tile.querySelector('.track-list');
-        if (!trackListEl) return;
-        const start = page * limit;
-        const pagedTracks = allTracks.slice(start, start + limit);
-        trackListEl.innerHTML = pagedTracks.map(tName => {
-            const isLow = tName.startsWith('*');
-            return `<div class="track-item ${isLow ? 'low-priority' : ''}">${isLow ? tName.substring(1) : tName}</div>`;
-        }).join('');
-    }
-
-    window.onpopstate = () => { contentLayer.classList.remove('active'); mainContainer.classList.remove('blurred'); };
-
-    let posX = 0, posY = 0, vx = 0, vy = 0, isDragging = false, lastX = 0, lastY = 0;
-    const start = (x, y) => { if(isIntroPlaying || contentLayer.classList.contains('active')) return; isDragging = true; lastX = x; lastY = y; };
-    const move = (x, y) => { if (!isDragging) return; const dx = x - lastX, dy = y - lastY; posX += dx; posY += dy; vx = dx; vy = dy; lastX = x; lastY = y; };
-    circle.addEventListener('mousedown', e => start(e.clientX, e.clientY));
-    window.addEventListener('mousemove', e => move(e.clientX, e.clientY));
-    window.addEventListener('mouseup', () => isDragging = false);
-    circle.addEventListener('touchstart', e => start(e.touches[0].clientX, e.touches[0].clientY));
-    window.addEventListener('touchmove', e => move(e.touches[0].clientX, e.touches[0].clientY));
-    window.addEventListener('touchend', () => isDragging = false);
-    
-    function animate() {
-        if (!isDragging && !contentLayer.classList.contains('active')) { posX += vx; posY += vy; vx *= 0.94; vy *= 0.94; }
-        world.style.transform = `translate(${posX}px, ${posY}px)`;
-        nodes.forEach(node => {
-            const dist = Math.sqrt((node.x + posX)**2 + (node.y + posY)**2);
-            node.el.style.transform = `translate(-50%, -50%) translate(${node.x}px, ${node.y}px)`;
-            if (!isIntroPlaying) node.el.style.filter = `blur(${Math.min(15, dist / 40)}px)`;
-            node.el.style.opacity = Math.max(0.1, 1 - (dist / 700));
-        });
-        requestAnimationFrame(animate);
-    }
-    animate();
-</script>
 </body>
 </html>
