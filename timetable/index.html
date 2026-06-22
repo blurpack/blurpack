@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>모래시계 타임라인</title>
+    <style>
+        /* 모바일 전체화면 고정 및 스크롤 방지 */
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #121212; /* 기본 검은색 */
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+
+        /* 픽셀들이 배치될 그리드 */
+        #hourglass-grid {
+            display: grid;
+            width: 100vw;
+            height: 100vh;
+            gap: 1px; /* 픽셀 간의 미세한 경계선 */
+            background-color: #000000;
+        }
+
+        .pixel {
+            background-color: #121212; /* 빈 시간 기본 색상 */
+            transition: background-color 0.3s ease;
+        }
+
+        /* 5초 이상 누르면 나타날 미니멀 오버레이 */
+        #info-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: #ffffff;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+            z-index: 1000;
+            text-align: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        #info-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .info-time { font-size: 1.2rem; opacity: 0.5; margin-bottom: 8px; }
+        .info-title { font-size: 2rem; font-weight: 700; margin-bottom: 16px; }
+        .info-desc { font-size: 1.1rem; opacity: 0.8; max-width: 300px; }
+        
+        /* 편집 화면 복귀용 숨겨진 버튼 (오른쪽 상단 미세하게 표시) */
+        .back-link {
+            position: fixed;
+            top: 16px;
+            right: 16px;
+            color: rgba(255,255,255,0.2);
+            text-decoration: none;
+            font-size: 0.8rem;
+            z-index: 999;
+        }
+    </style>
+</head>
+<body>
+
+<a href="../set-time/index.html" class="back-link">Edit</a>
+<div id="hourglass-grid"></div>
+
+<div id="info-overlay">
+    <div class="info-time" id="overlay-time">00:00</div>
+    <div class="info-title" id="overlay-title">현재 일과 없음</div>
+    <div class="info-desc" id="overlay-desc">-</div>
+</div>
+
+<script>
+    let totalPixels = 0;
+    let currentTaskNow = null;
+    let pressTimer = null;
+    const OVERLAY_DELAY = 1000; // ⚠️테스트 편의상 1초(1000ms)로 설정, 완벽히 작동 확인 후 5000으로 변경하세요!
+
+    // 1. 하루(24시간)를 초 단위로 환산 -> 86400초
+    const SECONDS_IN_DAY = 86400;
+
+    // 2. 화면 크기에 맞춰 격자 생성
+    function initGrid() {
+        const grid = document.getElementById('hourglass-grid');
+        grid.innerHTML = '';
+
+        // 모바일 해상도 맞춤형 격자 계산 (화면 비율에 맞춰 대략적인 픽셀 수 지정)
+        const sysWidth = window.innerWidth;
+        const sysHeight = window.innerHeight;
+        
+        // 대략 한 칸을 15px~20px 내외로 잡고 그리드 열/행 계산
+        const cols = Math.floor(sysWidth / 16);
+        const rows = Math.floor(sysHeight / 16);
+        totalPixels = cols * rows;
+
+        grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+        grid.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+
+        for (let i = 0; i < totalPixels; i++) {
+            const pixel = document.createElement('div');
+            pixel.className = 'pixel';
+            grid.appendChild(pixel);
+        }
+        
+        tick(); // 격자 생성 후 즉시 채우기 실행
+    }
+
+    // 3. 현재 시간 기준으로 화면 채우기 및 색상 매핑
+    function tick() {
+        const now = new Date();
+        const hours = now.getHours();
+        const minutes = now.getMinutes();
+        const seconds = now.getSeconds();
+        
+        // 오늘 지난 총 초(Second) 계산
+        const currentSeconds = (hours * 3600) + (minutes * 60) + seconds;
+        
+        // 오늘 전체 초 대비 현재 지나간 비율로 채울 칸 수 결정
+        const pixelsToFill = Math.floor((currentSeconds / SECONDS_IN_DAY) * totalPixels);
+        
+        // 데이터 가져오기
+        const tasks = JSON.parse(localStorage.getItem('inline_timetable')) || [];
+        const pixels = document.querySelectorAll('.pixel');
+
+        // 현재 시각의 타스크 매핑을 위해 'HH:MM' 포맷 생성
+        const timeString = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+        currentTaskNow = findTaskByTime(timeString, tasks);
+
+        // 그리드 전체 돌면서 색상 칠하기
+        for (let i = 0; i < totalPixels; i++) {
+            if (i < pixelsToFill) {
+                // 이 칸이 하루 중 몇시 몇분에 해당하는지 역산
+                const pixelTargetSecond = (i / totalPixels) * SECONDS_IN_DAY;
+                const pHour = Math.floor(pixelTargetSecond / 3600);
+                const pMin = Math.floor((pixelTargetSecond % 3600) / 60);
+                const pTimeString = `${String(pHour).padStart(2, '0')}:${String(pMin).padStart(2, '0')}`;
+                
+                // 해당 시간에 매칭되는 일과가 있다면 그 일과의 색상, 없으면 검은색
+                const taskAtPixel = findTaskByTime(pTimeString, tasks);
+                if (taskAtPixel) {
+                    pixels[i].style.backgroundColor = taskAtPixel.bg;
+                } else {
+                    pixels[i].style.backgroundColor = '#222222'; // 지나간 빈 시간은 살짝 밝은 검은색
+                }
+            } else {
+                pixels[i].style.backgroundColor = '#121212'; // 아직 도달하지 않은 시간은 완전 어두운 검은색
+            }
+        }
+    }
+
+    // 시간 비교 헬퍼 함수
+    function findTaskByTime(timeStr, tasks) {
+        let found = null;
+        tasks.forEach(task => {
+            if (!task.start) return;
+            
+            // 시작 시간 계산
+            const [sHour, sMin] = task.start.split(':').map(Number);
+            const startSec = (sHour * 60) + sMin;
+            const endSec = startSec + Number(task.duration);
+
+            const [cHour, cMin] = timeStr.split(':').map(Number);
+            const currentSec = (cHour * 60) + cMin;
+
+            if (currentSec >= startSec && currentSec < endSec) {
+                found = task;
+            }
+        });
+        return found;
+    }
+
+    // 4. 롱프레스 (5초 이상 누르기) 이벤트 제어
+    const overlay = document.getElementById('info-overlay');
+
+    function startPress(e) {
+        // 원래 화면 정보 업데이트
+        const now = new Date();
+        document.getElementById('overlay-time').innerText = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+        
+        if (currentTaskNow) {
+            document.getElementById('overlay-title').innerText = currentTaskNow.name || '제목 없음';
+            document.getElementById('overlay-desc').innerText = currentTaskNow.desc || '세부 정보가 없습니다.';
+            overlay.style.color = currentTaskNow.text;
+        } else {
+            document.getElementById('overlay-title').innerText = '진행 중인 일과 없음';
+            document.getElementById('overlay-desc').innerText = '';
+            overlay.style.color = '#ffffff';
+        }
+
+        // 타이머 시작
+        pressTimer = setTimeout(() => {
+            overlay.classList.add('show');
+        }, OVERLAY_DELAY);
+    }
+
+    function endPress() {
+        clearTimeout(pressTimer);
+        overlay.classList.remove('show');
+    }
+
+    // 모바일 터치 및 마우스 이벤트 바인딩
+    window.addEventListener('mousedown', startPress);
+    window.addEventListener('mouseup', endPress);
+    window.addEventListener('touchstart', startPress, { passive: true });
+    window.addEventListener('touchend', endPress);
+
+    // 창 크기 변경 대응 및 1초 주기 타이머 실행
+    window.addEventListener('resize', initGrid);
+    window.onload = () => {
+        initGrid();
+        setInterval(tick, 1000);
+    };
+</script>
+</body>
+</html>
