@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>일과 관리</title>
+    <style>
+        :root {
+            --notion-bg: #ffffff;
+            --notion-text: #37352f;
+            --notion-border: rgba(55, 53, 47, 0.16);
+            --notion-light-bg: #f1f1ef;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            background-color: var(--notion-bg);
+            color: var(--notion-text);
+            margin: 0;
+            padding: 40px 20px;
+            display: flex;
+            justify-content: center;
+        }
+        .container {
+            width: 100%;
+            max-width: 440px;
+        }
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 24px;
+            letter-spacing: -0.5px;
+        }
+        
+        /* 세로 리스트 드래그/스크롤 컨테이너 */
+        .task-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-height: 70vh;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+        
+        /* 알람 앱 스타일의 카드 (밖에서 바로 수정 가능) */
+        .task-card {
+            background: var(--notion-bg);
+            border: 1px solid var(--notion-border);
+            border-radius: 6px;
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            box-shadow: rgba(15, 15, 15, 0.02) 0px 1px 2px;
+        }
+
+        /* 인라인 입력창 스타일 (보더를 없애 노션처럼 미니멀하게) */
+        .inline-input {
+            border: none;
+            background: transparent;
+            font-family: inherit;
+            color: inherit;
+            padding: 2px 4px;
+            outline: none;
+            border-radius: 3px;
+        }
+        .inline-input:focus {
+            background-color: rgba(35, 131, 226, 0.08);
+        }
+        
+        .task-title-input {
+            font-size: 1.1rem;
+            font-weight: 600;
+            width: 100%;
+        }
+        
+        .time-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+            opacity: 0.8;
+        }
+        
+        input[type="time"].inline-input {
+            font-weight: 600;
+            cursor: pointer;
+        }
+        
+        .duration-input {
+            width: 45px;
+            text-align: center;
+            background: rgba(55, 53, 47, 0.06);
+            border-radius: 3px;
+        }
+
+        .desc-input {
+            font-size: 0.9rem;
+            opacity: 0.6;
+            width: 100%;
+        }
+
+        /* 미니멀 색상 선택 바 */
+        .color-bar {
+            display: flex;
+            gap: 6px;
+            margin-top: 4px;
+        }
+        .color-dot {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 1px solid rgba(0,0,0,0.05);
+            position: relative;
+        }
+        .color-dot.active::after {
+            content: '';
+            position: absolute;
+            top: 4px; left: 4px; width: 6px; height: 6px;
+            background: #37352f;
+            border-radius: 50%;
+        }
+
+        .card-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 4px;
+            border-top: 1px solid rgba(55, 53, 47, 0.05);
+            padding-top: 8px;
+        }
+
+        .delete-btn {
+            background: none;
+            border: none;
+            color: #e03e3e;
+            cursor: pointer;
+            font-size: 0.8rem;
+            opacity: 0.6;
+        }
+        .delete-btn:hover { opacity: 1; }
+
+        /* 추가 버튼 */
+        .add-btn {
+            width: 100%;
+            padding: 12px;
+            background: transparent;
+            border: 1px dashed var(--notion-border);
+            color: rgba(55, 53, 47, 0.6);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            margin-top: 16px;
+            text-align: left;
+            padding-left: 16px;
+        }
+        .add-btn:hover {
+            background: var(--notion-light-bg);
+            color: var(--notion-text);
+        }
+
+        .nav-link {
+            display: block;
+            text-align: center;
+            margin-top: 24px;
+            color: #2383e2;
+            text-decoration: none;
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>⏰ 일과 루틴</h1>
+    
+    <div id="taskList" class="task-list"></div>
+
+    <button class="add-btn" onclick="createNewTask()">+ 새 항목 추가</button>
+    
+    <a href="../timetable/index.html" class="nav-link">전체 시간표 뷰 보기 ↗</a>
+</div>
+
+<script>
+    // 노션 파스텔 컬러맵
+    const colors = [
+        { bg: '#f1f1ef', text: '#37352f' }, // 회색
+        { bg: '#f3eeee', text: '#9f3735' }, // 갈색
+        { bg: '#f8ecdf', text: '#df5b25' }, // 주황
+        { bg: '#faf3e0', text: '#dfab01' }, // 노랑
+        { bg: '#eef3ed', text: '#1d8355' }, // 초록
+        { bg: '#e9f3f7', text: '#0b6e99' }  // 파랑
+    ];
+
+    let dataset = JSON.parse(localStorage.getItem('inline_timetable')) || [];
+
+    function renderTasks() {
+        const container = document.getElementById('taskList');
+        container.innerHTML = '';
+
+        dataset.forEach((task, index) => {
+            const card = document.createElement('div');
+            card.className = 'task-card';
+            card.style.backgroundColor = task.bg;
+            card.style.color = task.text;
+
+            card.innerHTML = `
+                <input type="text" class="inline-input task-title-input" value="${task.name}" placeholder="일과 이름" onchange="updateTask(${index}, 'name', this.value)">
+                
+                <div class="time-row">
+                    <input type="time" class="inline-input" value="${task.start}" onchange="updateTask(${index}, 'start', this.value)">
+                    <span>부터</span>
+                    <input type="number" class="inline-input duration-input" value="${task.duration}" min="0" onchange="updateTask(${index}, 'duration', this.value)">
+                    <span>분 동안</span>
+                </div>
+
+                <input type="text" class="inline-input desc-input" value="${task.desc}" placeholder="세부 정보 추가..." onchange="updateTask(${index}, 'desc', this.value)">
+
+                <div class="card-footer">
+                    <div class="color-bar">
+                        ${colors.map(c => `
+                            <div class="color-dot ${task.bg === c.bg ? 'active' : ''}" 
+                                 style="background-color: ${c.bg};" 
+                                 onclick="updateColor(${index}, '${c.bg}', '${c.text}')">
+                            </div>
+                        `).join('')}
+                    </div>
+                    <button class="delete-btn" onclick="deleteTask(${index})">삭제</button>
+                </div>
+            `;
+            container.appendChild(card);
+        });
+    }
+
+    // 밖에서 값을 바꾸면 즉시 배열에 반영 및 로컬스토리지 저장
+    function updateTask(index, field, value) {
+        dataset[index][field] = value;
+        saveToStorage();
+    }
+
+    function updateColor(index, bg, text) {
+        dataset[index].bg = bg;
+        dataset[index].text = text;
+        saveToStorage();
+        renderTasks(); // 색상 변경 반영을 위한 리렌더링
+    }
+
+    function createNewTask() {
+        const newTask = {
+            name: '',
+            start: '09:00',
+            duration: '30',
+            desc: '',
+            bg: colors[0].bg,
+            text: colors[0].text
+        };
+        dataset.push(newTask);
+        saveToStorage();
+        renderTasks();
+        
+        // 스크롤을 가장 아래로 내림
+        const container = document.getElementById('taskList');
+        container.scrollTop = container.scrollHeight;
+    }
+
+    function deleteTask(index) {
+        dataset.splice(index, 1);
+        saveToStorage();
+        renderTasks();
+    }
+
+    function saveToStorage() {
+        // 시간순 자동 정렬 원치 않으면 이 라인 삭제 가능
+        dataset.sort((a, b) => a.start.localeCompare(b.start));
+        localStorage.setItem('inline_timetable', JSON.stringify(dataset));
+    }
+
+    // 초기 로드
+    window.onload = renderTasks;
+</script>
+</body>
+</html>
