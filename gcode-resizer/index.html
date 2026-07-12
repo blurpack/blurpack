@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>G-code 작업반경 변환기</title>
+<style>
+body{font-family:Arial;margin:30px}
+input{width:90px}
+button{margin:8px}
+pre{background:#f3f3f3;padding:10px;height:180px;overflow:auto}
+</style>
+</head>
+<body>
+<h2>2축 로봇암 G-code 작업반경 변환기</h2>
+
+<input type="file" id="file"><br><br>
+최소 반경(mm): <input id="minR" type="number" value="60">
+최대 반경(mm): <input id="maxR" type="number" value="400">
+<button onclick="convert()">변환 및 다운로드</button>
+
+<pre id="log"></pre>
+
+<script>
+let filename="",text="";
+document.getElementById("file").onchange=e=>{
+ const f=e.target.files[0];
+ if(!f)return;
+ filename=f.name;
+ const r=new FileReader();
+ r.onload=()=>{text=r.result;log("파일 로드 완료");};
+ r.readAsText(f);
+};
+
+function log(s){document.getElementById("log").textContent+=s+"\n";}
+
+function convert(){
+ if(!text){alert("파일 선택");return;}
+ const minR=parseFloat(minRInput().value);
+ const maxR=parseFloat(maxRInput().value);
+ let lines=text.split(/\r?\n/);
+
+ let pts=[];
+ for(let line of lines){
+   let xm=line.match(/X(-?\d+(\.\d+)?)/i);
+   let ym=line.match(/Y(-?\d+(\.\d+)?)/i);
+   if(xm&&ym){
+      let x=parseFloat(xm[1]), y=parseFloat(ym[1]);
+      pts.push({x,y});
+   }
+ }
+ if(!pts.length){alert("XY 없음");return;}
+
+ let rmax=0,rmin=1e9;
+ pts.forEach(p=>{
+   let r=Math.hypot(p.x,p.y);
+   if(r>rmax)rmax=r;
+   if(r<rmin)rmin=r;
+ });
+
+ let scale=1;
+ if(rmax>maxR) scale=maxR/rmax;
+
+ pts=pts.map(p=>({x:p.x*scale,y:p.y*scale}));
+
+ rmin=1e9;
+ pts.forEach(p=>{let r=Math.hypot(p.x,p.y);if(r<rmin)rmin=r;});
+ let offset=Math.max(0,minR-rmin);
+
+ let idx=0;
+ let out=lines.map(line=>{
+   let xm=line.match(/X(-?\d+(\.\d+)?)/i);
+   let ym=line.match(/Y(-?\d+(\.\d+)?)/i);
+   if(!(xm&&ym)) return line;
+
+   let p=pts[idx++];
+   let r=Math.hypot(p.x,p.y);
+   if(r>1e-9){
+      p.x+=p.x/r*offset;
+      p.y+=p.y/r*offset;
+   }
+   line=line.replace(/X-?\d+(\.\d+)?/i,"X"+p.x.toFixed(3));
+   line=line.replace(/Y-?\d+(\.\d+)?/i,"Y"+p.y.toFixed(3));
+   return line;
+ });
+
+ const blob=new Blob([out.join("\n")],{type:"text/plain"});
+ const a=document.createElement("a");
+ a.href=URL.createObjectURL(blob);
+ a.download="modified_"+filename.replace(/\.[^/.]+$/,"")+".gcode";
+ a.click();
+
+ log("최대반경="+rmax.toFixed(2));
+ log("스케일="+scale.toFixed(4));
+ log("오프셋="+offset.toFixed(2));
+}
+
+function minRInput(){return document.getElementById("minR");}
+function maxRInput(){return document.getElementById("maxR");}
+</script>
+</body>
+</html>
